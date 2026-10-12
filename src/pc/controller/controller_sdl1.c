@@ -231,10 +231,10 @@ static void controller_sdl_read(OSContPad *pad) {
     else if (ystick == STICK_UP)
         pad->stick_y = 127;
 
-    if (rightx < -0x4000) pad->button |= L_CBUTTONS;
-    if (rightx > 0x4000) pad->button |= R_CBUTTONS;
-    if (righty < -0x4000) pad->button |= U_CBUTTONS;
-    if (righty > 0x4000) pad->button |= D_CBUTTONS;
+    if (rightx < -0x6000) pad->button |= L_CBUTTONS;
+    if (rightx > 0x6000) pad->button |= R_CBUTTONS;
+    if (righty < -0x6000) pad->button |= U_CBUTTONS;
+    if (righty > 0x6000) pad->button |= D_CBUTTONS;
 
     uint32_t magnitude_sq = (uint32_t)(leftx * leftx) + (uint32_t)(lefty * lefty);
     uint32_t stickDeadzoneActual = configStickDeadzone * DEADZONE_STEP;

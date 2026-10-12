@@ -410,7 +410,6 @@ void render_game(void) {
 #endif
 
         render_hud();
-        smc64_levelselect_render();
         smc64_build_render_hud();
         gDPSetScissor(gDisplayListHead++, G_SC_NON_INTERLACE, 0, 0, SCREEN_WIDTH, SCREEN_HEIGHT);
         render_text_labels();
@@ -421,6 +420,8 @@ void render_game(void) {
         gDPSetScissor(gDisplayListHead++, G_SC_NON_INTERLACE, 0, BORDER_HEIGHT, SCREEN_WIDTH,
                       SCREEN_HEIGHT - BORDER_HEIGHT);
         gMenuOptSelectIndex = render_menus_and_dialogs();
+        /* Level select must draw above pause/options overlays. */
+        smc64_levelselect_render();
 
 #ifdef TARGET_N3DS
         gDPForceFlush(gDisplayListHead++); // flush dialog/menus

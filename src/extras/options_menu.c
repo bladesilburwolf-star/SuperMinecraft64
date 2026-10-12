@@ -7,6 +7,12 @@
 #include "audio/external.h"
 #include "game/camera.h"
 #include "game/level_update.h"
+extern void initiate_warp(s16 destLevel, s16 destArea, s16 destWarpNode, s32 warpFlags);
+extern void fade_into_special_warp(u32 arg, u32 color);
+extern s16 gSavedCourseNum;
+
+#include "game/mario.h"
+#include "game/area.h"
 #include "game/print.h"
 #include "game/segment2.h"
 #include "game/save_file.h"
@@ -15,6 +21,11 @@
 #include "game/ingame_menu.h"
 
 #include "options_menu.h"
+#include "game/smc64_build.h"
+#include "game/smc64_levelselect.h"
+#include "level_table.h"
+#include "course_table.h"
+#include "game/area.h"
 #include "draw_util.h"
 
 #include "pc/configfile.h"
@@ -73,7 +84,14 @@ static const u8 optSmallStr[][SIZEOPTC(32)] = {
     { TEXT_OPT_R_HIGHLIGHT },
 };
 
-static const u8 optMainStr[][SIZEOPTC(32)] = {
+static const u8 optSMC64Str[][SIZEOPTC(32)] = {
+    { TEXT_OPT_SMC64 },
+    { TEXT_OPT_BUILD_MODE },
+    { TEXT_OPT_LEVEL_SELECT },
+    { TEXT_OPT_CHARACTER },
+};
+
+const u8 optMainStr[][SIZEOPTC(32)] = {
     { TEXT_OPT_OPTIONS },
     { TEXT_OPT_CAMERA },
     { TEXT_OPT_CONTROLS },
@@ -180,6 +198,13 @@ static void optvideo_apply(UNUSED struct Option *self, s32 arg) {
     if (!arg) configWindow.settings_changed = true;
 }
 #endif
+
+
+/* Level warp action is defined at bottom of file (needs currentMenu). */
+
+/* Synced with smc64_build when the options menu is open. */
+static bool s_optBuildMode = FALSE;
+static u32 s_optCharacter = 0;
 
 /* submenu option lists */
 #if MORE_VANILLA_CAM_STUFF
@@ -295,9 +320,109 @@ static struct SubMenu menuVideo    = DEF_SUBMENU( optMainStr[3], optsVideo );
 static struct SubMenu menuAudio    = DEF_SUBMENU( optMainStr[4], optsAudio );
 static struct SubMenu menuSettings = DEF_SUBMENU( optMainStr[5], optsSettings );
 
+static const u8 smc64CharacterStr[][SIZEOPTC(32)] = {
+    { TEXT_CHAR_MARIO },
+    { TEXT_CHAR_STEVE },
+    { TEXT_CHAR_RESERVED_1 },
+    { TEXT_CHAR_RESERVED_2 },
+    { TEXT_CHAR_RESERVED_3 },
+    { TEXT_CHAR_RESERVED_4 },
+    { TEXT_CHAR_RESERVED_5 },
+};
+
+static const u8 *smc64CharacterChoices[] = {
+    smc64CharacterStr[0],
+    smc64CharacterStr[1],
+    smc64CharacterStr[2],
+    smc64CharacterStr[3],
+    smc64CharacterStr[4],
+    smc64CharacterStr[5],
+    smc64CharacterStr[6],
+};
+
 /* main options menu definition */
 
+
+static const u8 optLevelStr[][SIZEOPTC(32)] = {
+    { TEXT_LVL_0 },
+    { TEXT_LVL_1 },
+    { TEXT_LVL_2 },
+    { TEXT_LVL_3 },
+    { TEXT_LVL_4 },
+    { TEXT_LVL_5 },
+    { TEXT_LVL_6 },
+    { TEXT_LVL_7 },
+    { TEXT_LVL_8 },
+    { TEXT_LVL_9 },
+    { TEXT_LVL_10 },
+    { TEXT_LVL_11 },
+    { TEXT_LVL_12 },
+    { TEXT_LVL_13 },
+    { TEXT_LVL_14 },
+    { TEXT_LVL_15 },
+    { TEXT_LVL_16 },
+    { TEXT_LVL_17 },
+    { TEXT_LVL_18 },
+    { TEXT_LVL_19 },
+    { TEXT_LVL_20 },
+    { TEXT_LVL_21 },
+    { TEXT_LVL_22 },
+    { TEXT_LVL_23 },
+    { TEXT_LVL_24 },
+    { TEXT_LVL_25 },
+    { TEXT_LVL_26 },
+    { TEXT_LVL_27 },
+    { TEXT_LVL_28 },
+    { TEXT_LVL_29 },
+    { TEXT_LVL_30 },
+};
+
+static void optmenu_act_warp_level(struct Option *self, s32 arg);
+
+static struct Option optsLevels[] = {
+    DEF_OPT_BUTTON( optLevelStr[0], optmenu_act_warp_level ),
+    DEF_OPT_BUTTON( optLevelStr[1], optmenu_act_warp_level ),
+    DEF_OPT_BUTTON( optLevelStr[2], optmenu_act_warp_level ),
+    DEF_OPT_BUTTON( optLevelStr[3], optmenu_act_warp_level ),
+    DEF_OPT_BUTTON( optLevelStr[4], optmenu_act_warp_level ),
+    DEF_OPT_BUTTON( optLevelStr[5], optmenu_act_warp_level ),
+    DEF_OPT_BUTTON( optLevelStr[6], optmenu_act_warp_level ),
+    DEF_OPT_BUTTON( optLevelStr[7], optmenu_act_warp_level ),
+    DEF_OPT_BUTTON( optLevelStr[8], optmenu_act_warp_level ),
+    DEF_OPT_BUTTON( optLevelStr[9], optmenu_act_warp_level ),
+    DEF_OPT_BUTTON( optLevelStr[10], optmenu_act_warp_level ),
+    DEF_OPT_BUTTON( optLevelStr[11], optmenu_act_warp_level ),
+    DEF_OPT_BUTTON( optLevelStr[12], optmenu_act_warp_level ),
+    DEF_OPT_BUTTON( optLevelStr[13], optmenu_act_warp_level ),
+    DEF_OPT_BUTTON( optLevelStr[14], optmenu_act_warp_level ),
+    DEF_OPT_BUTTON( optLevelStr[15], optmenu_act_warp_level ),
+    DEF_OPT_BUTTON( optLevelStr[16], optmenu_act_warp_level ),
+    DEF_OPT_BUTTON( optLevelStr[17], optmenu_act_warp_level ),
+    DEF_OPT_BUTTON( optLevelStr[18], optmenu_act_warp_level ),
+    DEF_OPT_BUTTON( optLevelStr[19], optmenu_act_warp_level ),
+    DEF_OPT_BUTTON( optLevelStr[20], optmenu_act_warp_level ),
+    DEF_OPT_BUTTON( optLevelStr[21], optmenu_act_warp_level ),
+    DEF_OPT_BUTTON( optLevelStr[22], optmenu_act_warp_level ),
+    DEF_OPT_BUTTON( optLevelStr[23], optmenu_act_warp_level ),
+    DEF_OPT_BUTTON( optLevelStr[24], optmenu_act_warp_level ),
+    DEF_OPT_BUTTON( optLevelStr[25], optmenu_act_warp_level ),
+    DEF_OPT_BUTTON( optLevelStr[26], optmenu_act_warp_level ),
+    DEF_OPT_BUTTON( optLevelStr[27], optmenu_act_warp_level ),
+    DEF_OPT_BUTTON( optLevelStr[28], optmenu_act_warp_level ),
+    DEF_OPT_BUTTON( optLevelStr[29], optmenu_act_warp_level ),
+    DEF_OPT_BUTTON( optLevelStr[30], optmenu_act_warp_level ),
+};
+static struct SubMenu menuLevels = DEF_SUBMENU( optSMC64Str[2], optsLevels );
+
+static struct Option optsSMC64[] = {
+    DEF_OPT_TOGGLE( optSMC64Str[1], &s_optBuildMode ),
+    DEF_OPT_CHOICE( optSMC64Str[3], &s_optCharacter, smc64CharacterChoices ),
+    DEF_OPT_SUBMENU( optSMC64Str[2], &menuLevels ),
+};
+static struct SubMenu menuSMC64 = DEF_SUBMENU( optSMC64Str[0], optsSMC64 );
+
 static struct Option optsMain[] = {
+    DEF_OPT_SUBMENU( optSMC64Str[0], &menuSMC64 ),
 #if defined(BETTERCAMERA) || MORE_VANILLA_CAM_STUFF
     DEF_OPT_SUBMENU( optMainStr[1], &menuCamera ),
 #endif
@@ -488,6 +613,7 @@ static inline s16 get_hudstr_centered_x(const s16 sx, const u8 *str) {
 
 //Options menu
 void optmenu_draw(void) {
+    if (smc64_levelselect_is_open()) return;
     u8 i;
     s16 scroll;
     s16 scrollpos;
@@ -562,6 +688,8 @@ void optmenu_toggle(void) {
 
         currentMenu = &menuMain;
         optmenu_open = 1;
+        s_optBuildMode = smc64_build_is_enabled() ? TRUE : FALSE;
+        s_optCharacter = smc64_build_get_character();
         /* Resets l_counter to 0 every time the options menu is open */
         l_counter = 0;
     } else {
@@ -577,6 +705,7 @@ void optmenu_toggle(void) {
 }
 
 void optmenu_check_buttons(void) {
+    if (smc64_levelselect_is_open()) return;
 #if !defined(TARGET_N64) && !defined(TARGET_PORT_CONSOLE)
     if (optmenu_binding) {
         u32 key = controller_get_raw_key();
@@ -586,7 +715,7 @@ void optmenu_check_buttons(void) {
             #endif
             currentMenu->opts[currentMenu->select].uval[optmenu_bind_idx] = key;
             optmenu_binding = 0;
-            optmenu_option_timer = 12;
+            optmenu_option_timer = 22;
         }
         return;
     }
@@ -611,15 +740,19 @@ void optmenu_check_buttons(void) {
 
     if (!optmenu_open) return;
 
+    /* Keep in-game build mode matched to the R-menu toggle. */
+    smc64_build_set_enabled(s_optBuildMode ? 1 : 0);
+    smc64_build_set_character((s32) s_optCharacter);
+
     u8 allowInput = 0;
 
     optmenu_option_timer--;
     if (optmenu_option_timer <= 0) {
         if (optmenu_hold_count == 0) {
             optmenu_hold_count++;
-            optmenu_option_timer = 10;
+            optmenu_option_timer = 18;
         } else {
-            optmenu_option_timer = 3;
+            optmenu_option_timer = 9;
         }
         allowInput = 1;
     }
@@ -687,6 +820,74 @@ void optmenu_check_buttons(void) {
         optmenu_hold_count = 0;
         optmenu_option_timer = 0;
     }
+}
+
+
+/* ---- SuperMinecraft64 level warp (R-menu) ---- */
+struct SMC64LevelWarp {
+    s16 level;
+    s16 area;
+    s16 node;
+};
+
+static const struct SMC64LevelWarp s_optLevelWarps[] = {
+    { LEVEL_BLOCKLAND,        1, WARP_NODE_0A },
+    { LEVEL_CASTLE_GROUNDS,   1, WARP_NODE_0A },
+    { LEVEL_CASTLE,           1, WARP_NODE_00 },
+    { LEVEL_CASTLE_COURTYARD, 1, WARP_NODE_0A },
+    { LEVEL_BOB,              1, WARP_NODE_0A },
+    { LEVEL_WF,               1, WARP_NODE_0A },
+    { LEVEL_JRB,              1, WARP_NODE_0A },
+    { LEVEL_CCM,              1, WARP_NODE_0A },
+    { LEVEL_BBH,              1, WARP_NODE_0A },
+    { LEVEL_HMC,              1, WARP_NODE_0A },
+    { LEVEL_LLL,              1, WARP_NODE_0A },
+    { LEVEL_SSL,              1, WARP_NODE_0A },
+    { LEVEL_DDD,              1, WARP_NODE_0A },
+    { LEVEL_SL,               1, WARP_NODE_0A },
+    { LEVEL_WDW,              1, WARP_NODE_0A },
+    { LEVEL_TTM,              1, WARP_NODE_0A },
+    { LEVEL_THI,              1, WARP_NODE_0A },
+    { LEVEL_TTC,              1, WARP_NODE_0A },
+    { LEVEL_RR,               1, WARP_NODE_0A },
+    { LEVEL_PSS,              1, WARP_NODE_0A },
+    { LEVEL_SA,               1, WARP_NODE_0A },
+    { LEVEL_COTMC,            1, WARP_NODE_0A },
+    { LEVEL_VCUTM,            1, WARP_NODE_0A },
+    { LEVEL_WMOTR,            1, WARP_NODE_0A },
+    { LEVEL_TOTWC,            1, WARP_NODE_0A },
+    { LEVEL_BITDW,            1, WARP_NODE_0A },
+    { LEVEL_BITFS,            1, WARP_NODE_0A },
+    { LEVEL_BITS,             1, WARP_NODE_0A },
+    { LEVEL_BOWSER_1,         1, WARP_NODE_0A },
+    { LEVEL_BOWSER_2,         1, WARP_NODE_0A },
+    { LEVEL_BOWSER_3,         1, WARP_NODE_0A },
+};
+
+static void optmenu_act_warp_level(UNUSED struct Option *self, s32 arg) {
+    if (arg) return;
+
+    s32 idx = currentMenu->select;
+    s32 count = (s32)(sizeof(s_optLevelWarps) / sizeof(s_optLevelWarps[0]));
+    if (idx < 0 || idx >= count) return;
+
+    const struct SMC64LevelWarp *w = &s_optLevelWarps[idx];
+
+    /* Close options UI only — do NOT touch transition/pause flags here.
+     * Those fight fade_into_special_warp and soft-lock the game. */
+    if (optmenu_open) {
+        optmenu_open = 0;
+#ifndef TARGET_N64
+        controller_reconfigure();
+        configfile_save(configfile_name());
+#endif
+        currentMenu = &menuMain;
+    }
+
+    gSavedCourseNum = COURSE_NONE;
+    initiate_warp(w->level, w->area, w->node, WARP_FLAGS_NONE);
+    fade_into_special_warp(0, 0);
+    gCameraMovementFlags &= ~CAM_MOVE_PAUSE_SCREEN;
 }
 
 #endif // EXT_OPTIONS_MENU

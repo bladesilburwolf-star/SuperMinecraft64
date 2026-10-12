@@ -93,6 +93,7 @@ static s32 s_blockCount;
 static s32 s_hotbarSlot;
 static s32 s_inventoryCursor;
 static s32 s_buildMode;
+static s32 s_character = 1; // Preserve Steve as the default build-mode avatar.
 static s32 s_inventoryOpen;
 static s32 s_inventoryInitialized;
 static s32 s_marioVisibilityCaptured;
@@ -121,6 +122,25 @@ void smc64_build_set_enabled(s32 enabled) {
     }
 }
 
+enum { SMC64_CHARACTER_MARIO, SMC64_CHARACTER_STEVE, SMC64_CHARACTER_RESERVED_1,
+       SMC64_CHARACTER_RESERVED_2, SMC64_CHARACTER_RESERVED_3,
+       SMC64_CHARACTER_RESERVED_4, SMC64_CHARACTER_RESERVED_5,
+       SMC64_CHARACTER_COUNT };
+
+s32 smc64_build_get_character(void) {
+    return s_character;
+}
+
+void smc64_build_set_character(s32 character) {
+    if (character < 0 || character >= SMC64_CHARACTER_COUNT) return;
+    if (character == s_character) return;
+    s_character = character;
+    if (s_steveObject != NULL) {
+        obj_mark_for_deletion(s_steveObject);
+        s_steveObject = NULL;
+    }
+}
+
 static void update_steve_avatar(void) {
     if (!s_buildMode || gMarioState == NULL || gMarioObject == NULL) return;
 
@@ -128,7 +148,18 @@ static void update_steve_avatar(void) {
         s_marioWasInvisible = (gMarioObject->header.gfx.node.flags & GRAPH_RENDER_INVISIBLE) != 0;
         s_marioVisibilityCaptured = TRUE;
     }
+    if (s_character == SMC64_CHARACTER_MARIO) {
+        if (s_marioWasInvisible) gMarioObject->header.gfx.node.flags |= GRAPH_RENDER_INVISIBLE;
+        else gMarioObject->header.gfx.node.flags &= ~GRAPH_RENDER_INVISIBLE;
+        if (s_steveObject != NULL) {
+            obj_mark_for_deletion(s_steveObject);
+            s_steveObject = NULL;
+        }
+        return;
+    }
+
     gMarioObject->header.gfx.node.flags |= GRAPH_RENDER_INVISIBLE;
+    if (s_character != SMC64_CHARACTER_STEVE) return; // Reserved character slot.
 
     if (s_steveObject == NULL) {
         s_steveObject = spawn_object_abs_with_rot(gMarioObject, 0, MODEL_STEVE,

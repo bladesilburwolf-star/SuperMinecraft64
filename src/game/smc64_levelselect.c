@@ -60,6 +60,7 @@ static const struct LevelEntry s_levels[] = {
 #define LEVEL_COUNT ((s32) (sizeof(s_levels) / sizeof(s_levels[0])))
 
 static s32 s_open;
+static s32 s_ignoreInput;
 static s32 s_cursor;
 static s32 s_dir;
 static s32 s_holdFrames;
@@ -121,12 +122,18 @@ static s32 process_input(void) {
         move_cursor(dir, TRUE);
     } else {
         s_holdFrames++;
-        if (s_holdFrames >= 14 && (s_holdFrames - 14) % 4 == 0) move_cursor(dir, TRUE);
+        if (s_holdFrames >= 18 && (s_holdFrames - 18) % 6 == 0) move_cursor(dir, TRUE);
     }
     s_dir = dir;
 
     if (pressed & L_TRIG) move_cursor(-ROWS_VISIBLE, FALSE);
     if (pressed & R_TRIG) move_cursor(ROWS_VISIBLE, FALSE);
+
+    if (s_ignoreInput > 0) {
+        s_ignoreInput--;
+        freeze_input(c);
+        return RESULT_NONE;
+    }
 
     s32 result = RESULT_NONE;
     if (pressed & (A_BUTTON | START_BUTTON)) result = RESULT_CONFIRM;
@@ -137,11 +144,11 @@ static s32 process_input(void) {
 }
 
 static void warp_to_level(s16 level) {
-    // WARP_FLAG_EXIT_COURSE forces a full level change even when the target is the
-    // level you are already in (it also plays the castle warp sound).
-    initiate_warp(level, 1, 0x0A, WARP_FLAG_EXIT_COURSE);
-    fade_into_special_warp(0, 0);
+    s16 node = WARP_NODE_0A;
+    if (level == LEVEL_CASTLE) node = WARP_NODE_00;
     gSavedCourseNum = COURSE_NONE;
+    initiate_warp(level, 1, node, WARP_FLAGS_NONE);
+    fade_into_special_warp(0, 0);
 }
 
 void smc64_levelselect_update(void) {
