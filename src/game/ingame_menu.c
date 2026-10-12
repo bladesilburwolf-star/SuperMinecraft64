@@ -21,6 +21,7 @@
 #include "seq_ids.h"
 #include "sm64.h"
 #include "smc64_build.h"
+#include "smc64_levelselect.h"
 #include "text_strings.h"
 #include "types.h"
 #include "macros.h"
@@ -31,6 +32,7 @@
 #endif
 
 #define PAUSE_CASTLE_BUILD_MODE_INDEX (COURSE_NUM_TO_INDEX(COURSE_BONUS_STAGES) + 1)
+#define PAUSE_CASTLE_LEVEL_SELECT_INDEX (PAUSE_CASTLE_BUILD_MODE_INDEX + 1)
 
 #ifdef CHEATS_ACTIONS
 #include "extras/cheats.h"
@@ -2791,15 +2793,20 @@ void render_pause_course_options(s16 x, s16 y, s8 *index, s16 yIndex) {
     u8 textCameraAngleR[] = { TEXT_CAMERA_ANGLE_R };
 #endif
 
-    handle_menu_scrolling(MENU_SCROLL_VERTICAL, index, 1, 4);
+    handle_menu_scrolling(MENU_SCROLL_VERTICAL, index, 1, 5);
 
     gSPDisplayList(gDisplayListHead++, dl_ia_text_begin);
     gDPSetEnvColor(gDisplayListHead++, 255, 255, 255, gMenuTextAlpha);
 
     print_generic_string(x + 10, y - 2, LANGUAGE_ARRAY(textContinue));
     print_generic_string(x + 10, y - Y_OFFSET1, LANGUAGE_ARRAY(textExitCourse));
-    print_text(x + 10, y - 50,
+    // Build row sits one step below the camera row. While the camera submenu is
+    // open it occupies that spot, so the row drops below the submenu instead.
+    // The camera submenu occupies the camera row's space while it is open, so
+    // the two extra rows drop below it in that case.
+    print_text(x + 10, y - (*index == MENU_OPT_CAMERA_ANGLE_R ? 76 : 48),
         smc64_build_is_enabled() ? "BUILD MODE ON" : "BUILD MODE OFF");
+    print_text(x + 10, y - (*index == MENU_OPT_CAMERA_ANGLE_R ? 92 : 64), "LEVEL SELECT");
 
     if (*index != MENU_OPT_CAMERA_ANGLE_R) {
         print_generic_string(x + 10, y - Y_OFFSET2, LANGUAGE_ARRAY(textCameraAngleR));
@@ -2975,7 +2982,7 @@ void render_pause_castle_main_strings(s16 x, s16 y) {
 
     handle_menu_scrolling(
         MENU_SCROLL_VERTICAL, &gMenuLineNum,
-        COURSE_NUM_TO_INDEX(COURSE_MIN) - 1, PAUSE_CASTLE_BUILD_MODE_INDEX
+        COURSE_NUM_TO_INDEX(COURSE_MIN) - 1, PAUSE_CASTLE_LEVEL_SELECT_INDEX
     );
 
     if (gMenuLineNum == COURSE_NUM_TO_INDEX(COURSE_MIN) - 1) {
@@ -2983,7 +2990,8 @@ void render_pause_castle_main_strings(s16 x, s16 y) {
     }
 
     if (gMenuLineNum != COURSE_NUM_TO_INDEX(COURSE_BONUS_STAGES)
-        && gMenuLineNum != PAUSE_CASTLE_BUILD_MODE_INDEX) {
+        && gMenuLineNum != PAUSE_CASTLE_BUILD_MODE_INDEX
+        && gMenuLineNum != PAUSE_CASTLE_LEVEL_SELECT_INDEX) {
         while (save_file_get_course_star_count(gCurrSaveFileNum - 1, gMenuLineNum) == 0) {
             if (gMenuLineNum >= prevCourseIndex) {
                 gMenuLineNum++;
@@ -3006,6 +3014,9 @@ void render_pause_castle_main_strings(s16 x, s16 y) {
         print_text_centered(160, 126, "BUILD MODE");
         print_text_centered(160, 106, smc64_build_is_enabled() ? "ON" : "OFF");
         print_text_centered(160, 78, "A TO TOGGLE");
+    } else if (gMenuLineNum == PAUSE_CASTLE_LEVEL_SELECT_INDEX) {
+        print_text_centered(160, 126, "LEVEL SELECT");
+        print_text_centered(160, 78, "A TO OPEN");
     } else if (gMenuLineNum <= COURSE_NUM_TO_INDEX(COURSE_STAGES_MAX)) { // Main courses
         courseName = segmented_to_virtual(courseNameTbl[gMenuLineNum]);
         render_pause_castle_course_stars(x, y, gCurrSaveFileNum - 1, gMenuLineNum);
@@ -3030,13 +3041,17 @@ void render_pause_castle_main_strings(s16 x, s16 y) {
     }
 
 #ifndef VERSION_EU
-    if (gMenuLineNum != PAUSE_CASTLE_BUILD_MODE_INDEX) {
+    if (gMenuLineNum != PAUSE_CASTLE_BUILD_MODE_INDEX
+        && gMenuLineNum != PAUSE_CASTLE_LEVEL_SELECT_INDEX) {
         print_generic_string(x - 9, y + 30, courseName);
     }
 #endif
 
     gSPDisplayList(gDisplayListHead++, dl_ia_text_end);
-    print_text_centered(160, 34, "D-PAD DOWN: BUILD MODE");
+    if (gMenuLineNum < PAUSE_CASTLE_BUILD_MODE_INDEX) {
+        // print_text() has no ':' or '-' glyph, so keep the hint to letters.
+        print_text_centered(160, 34, "DPAD DOWN FOR BUILD MODE");
+    }
 }
 
 s8 gCourseCompleteCoinsEqual = FALSE;
@@ -3095,6 +3110,8 @@ s16 render_pause_screen(void) {
             if (gPlayer1Controller->buttonPressed & Z_BUTTON_DEF(A_BUTTON | START_BUTTON)) {
                 if (gMenuLineNum == MENU_OPT_BUILD_MODE) {
                     smc64_build_set_enabled(!smc64_build_is_enabled());
+                } else if (gMenuLineNum == MENU_OPT_LEVEL_SELECT) {
+                    smc64_levelselect_open();
                 }
                 level_set_transition(0, NULL);
                 play_sound(SOUND_MENU_PAUSE_CLOSE, gGlobalSoundSource);
@@ -3120,6 +3137,8 @@ s16 render_pause_screen(void) {
             if (gPlayer1Controller->buttonPressed & Z_BUTTON_DEF(A_BUTTON | START_BUTTON)) {
                 if (gMenuLineNum == PAUSE_CASTLE_BUILD_MODE_INDEX) {
                     smc64_build_set_enabled(!smc64_build_is_enabled());
+                } else if (gMenuLineNum == PAUSE_CASTLE_LEVEL_SELECT_INDEX) {
+                    smc64_levelselect_open();
                 }
                 level_set_transition(0, NULL);
                 play_sound(SOUND_MENU_PAUSE_CLOSE, gGlobalSoundSource);

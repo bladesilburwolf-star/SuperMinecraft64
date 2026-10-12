@@ -26,6 +26,7 @@
 #ifdef MOUSE_ACTIONS
 #include "pc/controller/controller_mouse.h"
 #include "pc/configfile.h"
+#include "game/smc64_levelselect.h"
 #endif
 
 #ifdef COMMAND_LINE_OPTIONS
@@ -184,9 +185,9 @@ static u8 textMarioB[] = { TEXT_FILE_MARIO_B };
 static u8 textMarioC[] = { TEXT_FILE_MARIO_C };
 static u8 textMarioD[] = { TEXT_FILE_MARIO_D };
 
-// Charmap encoded: "Z: BLOCKLAND".
+// Charmap encoded: "Z: LEVEL SELECT" (0xFF terminates the string).
 static u8 textBlocklandShortcut[] = {
-    0x23, 0xE6, 0x9E, 0x0B, 0x15, 0x18, 0x0C, 0x14, 0x15, 0x0A, 0x17, 0x0D,
+    0x23, 0xE6, 0x9E, 0x15, 0x0E, 0x1F, 0x0E, 0x15, 0x9E, 0x1C, 0x0E, 0x15, 0x0E, 0x0C, 0x1D, 0xFF,
 };
 
 #ifndef VERSION_EU
@@ -1968,7 +1969,7 @@ void print_main_menu_strings(void) {
     if (sCurrentMenuLevel == MENU_LAYER_MAIN) {
         gSPDisplayList(gDisplayListHead++, FILE_SELECT_TEXT_DL_BEGIN);
         gDPSetEnvColor(gDisplayListHead++, 255, 255, 255, sTextBaseAlpha);
-        FILE_SELECT_PRINT_STRING(122, 15, textBlocklandShortcut);
+        FILE_SELECT_PRINT_STRING(110, 15, textBlocklandShortcut);
         gSPDisplayList(gDisplayListHead++, FILE_SELECT_TEXT_DL_END);
     }
 }
@@ -3381,14 +3382,21 @@ s32 lvl_init_menu_values_and_cursor_pos(UNUSED s32 arg, UNUSED s32 unused) {
  * defined in load_main_menu_save_file.
  */
 s32 lvl_update_obj_and_load_file_selected(UNUSED s32 arg, UNUSED s32 unused) {
+    // While the level select overlay is open it owns the controller (input is
+    // zeroed here, before the file-select buttons see it).
+    s32 chosenLevel = smc64_levelselect_update_menu();
     area_update_objects();
-    // Z is reserved on the main file-select page as a direct shortcut to the
-    // custom Blockland level. Return a sentinel outside the normal 1-4 saves.
-    if (sSelectedFileNum == 0 && sCurrentMenuLevel == MENU_LAYER_MAIN
-        && (gPlayer1Controller->buttonPressed & Z_TRIG)) {
+    if (chosenLevel != 0) {
+        // Sentinel outside the normal 1-4 saves; the menu level script then calls
+        // lvl_smc64_get_start_level() to find which level to load.
+        sSelectedFileNum = 5;
+    } else if (!smc64_levelselect_is_open() && sSelectedFileNum == 0
+               && sCurrentMenuLevel == MENU_LAYER_MAIN
+               && (gPlayer1Controller->buttonPressed & Z_TRIG)) {
+        // Z on the main file-select page opens the level select overlay.
         gPlayer1Controller->buttonPressed &= ~Z_TRIG;
         gPlayer1Controller->buttonDown &= ~Z_TRIG;
-        sSelectedFileNum = 5;
+        smc64_levelselect_open();
     }
     return sSelectedFileNum;
 }

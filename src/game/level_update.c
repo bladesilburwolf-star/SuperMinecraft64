@@ -18,6 +18,7 @@
 #include "sound_init.h"
 #include "mario.h"
 #include "smc64_build.h"
+#include "smc64_levelselect.h"
 #include "camera.h"
 #include "object_list_processor.h"
 #include "ingame_menu.h"
@@ -998,6 +999,7 @@ void basic_update(UNUSED s16 *arg) {
 }
 
 s32 play_mode_normal(void) {
+    smc64_levelselect_update();
     smc64_build_update();
 
     if (gCurrDemoInput != NULL) {

@@ -8,6 +8,7 @@
 
 #include "game/area.h"
 #include "game/level_update.h"
+#include "game/smc64_levelselect.h"
 #include "menu/file_select.h"
 #include "menu/star_select.h"
 
@@ -73,7 +74,7 @@ const LevelScript level_main_menu_entry_1_blockland[] = {
     // Restore a valid save slot before the normal gameplay scripts run.
     SET_REG(/*value*/ 1),
     GET_OR_SET(/*op*/ OP_SET, /*var*/ VAR_CURR_SAVE_FILE_NUM),
-    SET_REG(/*value*/ LEVEL_BLOCKLAND),
+    CALL(/*arg*/ 0, /*func*/ lvl_smc64_get_start_level),
     EXIT_AND_EXECUTE(/*seg*/ 0x15, _scriptsSegmentRomStart, _scriptsSegmentRomEnd, level_main_scripts_entry),
 };
 

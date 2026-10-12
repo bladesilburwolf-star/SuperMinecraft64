@@ -116,6 +116,7 @@ enum MenuOption {
     MENU_OPT_2,
     MENU_OPT_3,
     MENU_OPT_4,
+    MENU_OPT_5,
     MENU_OPT_DEFAULT = MENU_OPT_1,
 
     // Course Pause Menu
@@ -123,6 +124,7 @@ enum MenuOption {
     MENU_OPT_EXIT_COURSE = MENU_OPT_2,
     MENU_OPT_CAMERA_ANGLE_R = MENU_OPT_3,
     MENU_OPT_BUILD_MODE = MENU_OPT_4,
+    MENU_OPT_LEVEL_SELECT = MENU_OPT_5,
 
     // Save Menu
     MENU_OPT_SAVE_AND_CONTINUE = MENU_OPT_1,

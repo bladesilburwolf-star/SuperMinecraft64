@@ -1,5 +1,21 @@
 # MODLOG
 
+## 2026-10-12 — More Mario objects + dedicated level select
+
+- Inventory is now a data-driven item table (`s_items[]` in `smc64_build.c`): 4 solid blocks (metal box, crate, small crate, question box) and 14 props with their real SM64 behaviors: coin, red coin, 1-up, Goomba, Bob-omb, Bob-omb buddy, Koopa shell, heart, Fly Guy, Chuckya, homing Amp, butterfly, star (decor), sign (decor). Only models blockland already loads are used. Add an item by adding one line to the table.
+- Placed props can be killed, collected, wander off or be unloaded, and the object pool reuses freed slots, so every tracked object is re-validated each frame (active + same behavior) and dropped from the table if it is gone. Break targets the nearest tracked object to the target cell, so wandering props can still be picked up.
+- New `smc64_levelselect.c/.h`: scrolling list of 31 levels (stick/D-pad/C-Up/C-Down move, L/R page, A go, B back). Opened from a new LEVEL SELECT row in both pause menus (course and castle) and with Z on the file-select screen. In-level it warps with `initiate_warp(level, 1, 0x0A, WARP_FLAG_EXIT_COURSE)` + `fade_into_special_warp`. From file select it hands the level to the menu script through `lvl_smc64_get_start_level()` (the old save-slot-5 hack now loads whatever level was chosen instead of always Blockland).
+- File select label updated to `Z: LEVEL SELECT`; the old label array was missing its 0xFF terminator.
+- Not compiled or run in game this pass.
+
+## 2026-10-11 — Build mode controls/menu cleanup
+
+- SM64EX-alo binds only L, R, Z and the C buttons on keyboard by default (D-pad mostly unbound), so build mode uses those: R places, L breaks, C-Up/C-Down change hotbar slot, Z opens/closes inventory (stick or C buttons move the cursor, A selects/swaps, B or Z closes). D-pad still works as an extra for controllers. A and B stay free for jump/attack; Z is used for inventory while build mode is on.
+- Inventory now freezes Mario's stick and buttons (START still pauses) instead of letting him walk around behind the menu.
+- HUD: print_text() has no '>' glyph, so the old cursor was invisible; the cursor is now the star glyph. Empty slots are blank. Hotbar sits at the bottom with the held item and stack above it; inventory shows storage rows above a separate hotbar row. Removed the clutter lines.
+- Pause menu: BUILD MODE row realigned with the cursor and moved below the camera-angle submenu when it is open; castle menu hint no longer uses ':' and '-' (they render blank/star).
+- Not compiled or run in game this pass (baserom/assets not available in the review environment).
+
 ## 2026-10-11 — Native SMC64 build mode
 
 - Replaced the tunnel-dependent block-building goal with a native SM64 PC feature.
